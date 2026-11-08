@@ -50,8 +50,8 @@ In GTM, configure your regular Google tag and GA4 event tags for the events belo
 | `platba.html` | `add_payment_info` with `payment_type` on selection |
 | `shrnuti.html` | Creates a UUID order on the Pay button, then navigates; no purchase yet |
 | `dekujeme.html?order=…` | `purchase` once per transaction, then clears the cart |
-| `poptavka.html` | `generate_lead` once after valid local submission (`currency: "CZK"`, `value: 500`, `lead_source: "contact_form"`), then navigates |
-| `poptavka-odeslano.html` | Confirmation only; no repeat lead event |
+| `poptavka.html` | Enquiry form; a valid local submission navigates to the confirmation page without any event |
+| `poptavka-odeslano.html` | `generate_lead` once after a confirmed submission (`currency: "CZK"`, `value: 500`, `lead_source: "contact_form"`); a reload or a direct visit sends nothing |
 | Contacts in every footer and on the enquiry page | `click_mail` on the email link |
 | Contacts in every footer and on the enquiry page | `click_tel` on the telephone link |
 | Selected contact email anywhere on the page | `copy_email` on copy, at most once per 2 seconds |
@@ -87,9 +87,9 @@ Optional: `BASE_URL=http://127.0.0.1:8765/` (include a trailing slash; project s
 
 Full data layers per step, request logs and screenshots are written to the ignored `output/playwright/` directory after a successful run. This checks the demo data layer and default network isolation, not delivery into live GA4 properties.
 
-### Verification in the authoring environment
+### Verified runs
 
-The browser check was attempted, but the execution sandbox blocked the local server socket (`Operation not permitted`) and Chromium's launch (`MachPortRendezvousServer: Permission denied`). Therefore no desktop/Pixel browser pass or visual rendering check is claimed. JavaScript syntax, shell links/language metadata and separate in-process event/storage checks passed for Czech, English and a language switch, each with normal and blocked localStorage. These checks cover base/page-view ordering, canonical items, shared cart, purchase VAT/shipping, deduplication and lead source; they do not verify browser layout. The existing server at 127.0.0.1:8765 was also unreachable from this sandbox during the second round. Run the browser command above in an environment that permits local listening sockets and browser processes before relying on the demo for measurement comparisons.
+On 2026-11-08 the browser check passed in all ten scenarios above (Czech, English, language switch, Pixel 7, 360 px, blocked localStorage and the no-JavaScript search). The live demo was then browsed by a scripted visitor in 16 visits (purchase on desktop and mobile, back button, new tab, reload, enquiry, search and refused consent): GTM sent GA4 hits with the expected consent state, and the Vanilla server answered every request with 204. Report-level comparison of the two GA4 properties is still to come.
 
 ## License
 
