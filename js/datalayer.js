@@ -16,3 +16,9 @@ export function ecommerce(event, items, extra = {}) {
 }
 export function search(search_term) { window.dataLayer.push({ event: 'search', ...(search_term ? { search_term } : {}) }); }
 export function lead() { window.dataLayer.push({ event: 'generate_lead', currency: 'CZK', value: 500, lead_source: 'contact_form' }); }
+
+export function contact(event) {
+  if (['click_mail', 'click_tel', 'copy_email', 'copy_phone'].includes(event)) {
+    window.dataLayer.push({ event });
+  }
+}

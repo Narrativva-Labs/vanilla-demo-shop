@@ -3,8 +3,10 @@ import { item, valueOf, ecommerce, search, lead, roundMoney, taxOf } from './dat
 import { read, write } from './storage.js';
 import { language, t, productText } from './i18n.js';
 import { setupHeader } from './header.js';
+import { setupContacts, contactMarkup } from './contacts.js';
 
 setupHeader();
+setupContacts();
 const page = document.body.dataset.page;
 const content = document.getElementById('content');
 const params = new URLSearchParams(location.search);
@@ -126,7 +128,7 @@ if (checkout.includes(page) && !cart.length) {
     content.innerHTML = `<p class="empty">${t.thanksHero}</p><p>${t.thanksHint}</p><p class="order-id">${t.orderNumber} ${escape(order.transaction_id)}</p><p>${t.fruit} ${money(valueOf(order.items))} · ${t.shipping} ${money(order.shipping)} · ${t.taxLabel} ${money(tax)}</p><a class="button" href="index.html">${t.moreFruit}</a>`;
   } else content.innerHTML = `<p>${t.noOrder}</p><a class="button" href="index.html">${t.backFruit}</a>`;
 } else if (page === 'lead') {
-  content.innerHTML = `<p>${t.leadHint}</p><form id="lead-form"><label for="email">${t.email}</label><input id="email" type="email" autocomplete="email" required maxlength="254"><label for="message">${t.message}</label><textarea id="message" rows="5" required maxlength="2000"></textarea><p>${t.leadPrivacy}</p><button type="submit">${t.sendLead}</button></form>`;
+  content.innerHTML = `${contactMarkup()}<p>${t.leadHint}</p><form id="lead-form"><label for="email">${t.email}</label><input id="email" type="email" autocomplete="email" required maxlength="254"><label for="message">${t.message}</label><textarea id="message" rows="5" required maxlength="2000"></textarea><p>${t.leadPrivacy}</p><button type="submit">${t.sendLead}</button></form>`;
   let submitted = false;
   document.getElementById('lead-form').addEventListener('submit', event => {
     event.preventDefault();

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { messages } from '../js/i18n.js';
+import { contactDetails } from '../js/contacts.js';
 const require = createRequire(import.meta.url);
 const { chromium, devices } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
 const base = process.env.BASE_URL || 'http://127.0.0.1:8765/';
@@ -47,6 +48,14 @@ try {
         return Array.prototype.push.apply(this, items);
       };
       window.dataLayer = layer;
+      // Test-only guard: shop handlers run first; external apps never open.
+      window.contactNavigations = [];
+      window.addEventListener('click', event => {
+        const link = event.target.closest?.('a[data-contact]');
+        if (!link || !/^(mailto:|tel:)/.test(link.href)) return;
+        window.contactNavigations.push({ protocol: link.protocol, preventedByShop: event.defaultPrevented });
+        event.preventDefault();
+      });
     }, { blocked: mode === 'blocked-storage' });
     const page = await context.newPage();
     context.on('page', tab => tab.on('pageerror', error => errors.push(error.message)));
@@ -58,6 +67,8 @@ try {
       const layer = await page.evaluate(() => JSON.parse(JSON.stringify(window.dataLayer)));
       snapshots.push({ label, url: page.url(), dataLayer: layer });
       assert(await page.locator('.demo').isVisible());
+      assert.equal(await page.locator('footer [data-contact="email"]').getAttribute('href'), 'mailto:' + contactDetails.email);
+      assert.equal(await page.locator('footer [data-contact="phone"]').getAttribute('href'), 'tel:' + contactDetails.phone);
       assert.equal(await page.locator('html').getAttribute('lang'), language);
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), mode + ': horizontal overflow on ' + label);
       const types = { home: 'homepage', product: 'product', search: 'category', cart: 'cart', shipping: 'checkout', payment: 'checkout', summary: 'checkout', thanks: 'confirmation', lead: 'contact', 'lead-thanks': 'confirmation' };
@@ -73,6 +84,53 @@ try {
       if (!await page.locator('#query').isVisible()) await page.locator('#search-toggle').click();
       await page.locator('#query').fill(term);
       await clickNav(page.locator('#search-form button'), 'hledat.html');
+    }
+    const contactEvents = ['click_mail', 'click_tel', 'click_mail', 'click_tel', 'copy_email', 'copy_phone', 'copy_email', 'copy_phone'];
+    async function checkContacts() {
+      const before = await page.evaluate(() => dataLayer.length);
+      const originalURL = page.url();
+      for (const scope of ['#content', 'footer']) {
+        const mail = page.locator(`${scope} [data-contact="email"]`);
+        const phone = page.locator(`${scope} [data-contact="phone"]`);
+        assert.equal(await mail.getAttribute('href'), 'mailto:' + contactDetails.email);
+        assert.equal(await phone.getAttribute('href'), 'tel:' + contactDetails.phone);
+        await mail.click(); await phone.click();
+      }
+      assert.equal(page.url(), originalURL);
+      assert.deepEqual(await page.evaluate(() => window.contactNavigations), [
+        { protocol: 'mailto:', preventedByShop: false }, { protocol: 'tel:', preventedByShop: false },
+        { protocol: 'mailto:', preventedByShop: false }, { protocol: 'tel:', preventedByShop: false }
+      ]);
+      const clockTime = new Date();
+      await page.clock.install({ time: clockTime });
+      await page.clock.pauseAt(new Date(clockTime.getTime() + 1000));
+      async function copy(selector) {
+        const unprevented = await page.locator(selector).evaluate(node => {
+          const range = document.createRange(); range.selectNodeContents(node);
+          const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
+          return node.dispatchEvent(new Event('copy', { bubbles: true, cancelable: true }));
+        });
+        assert(unprevented, 'Copy keeps its native action');
+      }
+      await copy('footer [data-contact="email"]');
+      await copy('footer [data-contact="email"]');
+      const phone = page.locator('#content [data-contact="phone"]');
+      const displayPhone = await phone.textContent();
+      await phone.evaluate(node => { node.textContent = '+420\u00a0 000\n000\t000'; });
+      await copy('#content [data-contact="phone"]');
+      await copy('#content [data-contact="phone"]');
+      await phone.evaluate((node, text) => { node.textContent = text; }, displayPhone);
+      await copy('#content .contact-links'); // Both types are still throttled across scopes.
+      await copy('#lead-form label[for="message"]'); // Unrelated selections do nothing.
+      await page.clock.fastForward(1999);
+      await copy('#content .contact-links');
+      assert.deepEqual(await page.evaluate(start => dataLayer.slice(start), before), contactEvents.slice(0, 6).map(event => ({ event })));
+      await page.clock.fastForward(1);
+      await copy('#content .contact-links');
+      assert.deepEqual(await page.evaluate(start => dataLayer.slice(start), before), contactEvents.map(event => ({ event })));
+      await page.evaluate(() => window.getSelection().removeAllRanges());
+      await page.clock.resume();
+      await snap('contact clicks and copies');
     }
     await page.goto(languageBase());
     await snap('home');
@@ -172,6 +230,7 @@ try {
       await snap('empty redirect ' + path);
     }
     await clickNav(page.getByRole('link', { name: ui.leadLink, exact: true }), 'poptavka.html');
+    await checkContacts();
     await page.locator('#email').fill('tester@example.test');
     await page.locator('#message').fill('Private fruit message 12345');
     await clickNav(page.getByRole('button', { name: ui.sendLead }), 'poptavka-odeslano.html');
@@ -182,6 +241,9 @@ try {
     assert.deepEqual(leads[0].entry, { event: 'generate_lead', currency: 'CZK', value: 500, lead_source: 'contact_form' });
     const serialized = JSON.stringify(entries.map(e => e.entry));
     assert(!serialized.includes('tester@example.test') && !serialized.includes('Private fruit message'));
+    assert(!serialized.includes(contactDetails.email));
+    assert(!serialized.replace(/\s/g, '').includes(contactDetails.phone));
+    assert(!serialized.includes('420000000000'));
     assert(entries.some(e => e.entry.event === 'search' && e.entry.search_term === searchTerm));
     await runSearch('<script>');
     await snap('no results');
@@ -230,7 +292,7 @@ try {
       'page_view', 'view_item_list',
       'page_view', // Confirmation via history.
       ...Array(3).fill(['page_view', 'page_view', 'view_cart']).flat(),
-      'page_view', 'page_view', 'generate_lead', 'page_view', // Lead sent only on its confirmation page.
+      'page_view', ...contactEvents, 'page_view', 'generate_lead', 'page_view', // Lead sent only on its confirmation page.
       'page_view', 'search', 'view_item_list'
     ];
     assert.deepEqual(sequence, expected, 'Full event sequence');
