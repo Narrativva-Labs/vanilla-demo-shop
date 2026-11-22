@@ -89,7 +89,7 @@
     }
   }, 1000);
   var st = document.getElementById('status');
-  ['f-send'].forEach(function (id) { document.getElementById(id).addEventListener('click', function (e) { st.textContent = 'klik ' + id + ' (isTrusted=' + e.isTrusted + ')'; lines.push(stamp() + ' KLIK ' + id + ' isTrusted=' + e.isTrusted + ' detail=' + e.detail + ' pointerType=' + (e.pointerType || '-')); render(); }); });
+  ['f-send'].forEach(function (id) { document.getElementById(id).addEventListener('click', function (e) { if (st) st.textContent = 'klik ' + id + ' (isTrusted=' + e.isTrusted + ')'; lines.push(stamp() + ' KLIK ' + id + ' isTrusted=' + e.isTrusted + ' detail=' + e.detail + ' pointerType=' + (e.pointerType || '-')); render(); }); });
   ['f-name','f-note'].forEach(function (fid) { document.getElementById(fid).addEventListener('input', function (e) { lines.push(stamp() + ' PSANÍ isTrusted=' + e.isTrusted + ' inputType=' + e.inputType + ' pole=' + fid + ' délka=' + e.target.value.length); render(); }); });
   ['f-fruit','f-news'].forEach(function (fid) { document.getElementById(fid).addEventListener('change', function (e) { lines.push(stamp() + ' ZMĚNA ' + fid + ' isTrusted=' + e.isTrusted); render(); }); });
   var keys = 0; document.addEventListener('keydown', function () { keys++; }, true);

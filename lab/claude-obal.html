@@ -88,7 +88,7 @@
     }
   }, 1000);
   var st = document.getElementById('status');
-  ['b1', 'b2'].forEach(function (id) { document.getElementById(id).addEventListener('click', function (e) { st.textContent = 'klik ' + id + ' (isTrusted=' + e.isTrusted + ')'; lines.push(stamp() + ' KLIK ' + id + ' isTrusted=' + e.isTrusted + ' detail=' + e.detail + ' pointerType=' + (e.pointerType || '-')); render(); }); });
+  ['b1', 'b2'].forEach(function (id) { document.getElementById(id).addEventListener('click', function (e) { if (st) st.textContent = 'klik ' + id + ' (isTrusted=' + e.isTrusted + ')'; lines.push(stamp() + ' KLIK ' + id + ' isTrusted=' + e.isTrusted + ' detail=' + e.detail + ' pointerType=' + (e.pointerType || '-')); render(); }); });
   document.getElementById('t1').addEventListener('input', function (e) { lines.push(stamp() + ' PSANÍ isTrusted=' + e.isTrusted + ' inputType=' + e.inputType + ' délka=' + e.target.value.length); render(); });
   var keys = 0; document.addEventListener('keydown', function () { keys++; }, true);
   var moves = 0; document.addEventListener('mousemove', function () { moves++; }, true);
