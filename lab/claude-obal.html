@@ -25,16 +25,19 @@
   <input id="t1" type="text" placeholder="sem napiš text" autocomplete="off">
   <button id="b2" type="button">Hotovo</button>
   <p>Stav: <span id="status">čekám</span></p>
+  <p><a href="claude-obal-2.html">Pokračovat na druhou stránku</a></p>
 </div>
 <div class="box">
-  <button id="copy" type="button">Kopírovat log</button>
+  <button id="copy" type="button">Kopírovat log</button> <button id="clear" type="button">Vymazat log</button>
   <span id="copied"></span>
   <div id="log"></div>
 </div>
 <script>
 (function () {
-  var t0 = performance.now(), lines = [], seen = new WeakMap(), n = 0;
-  var stamp = function () { return ((performance.now() - t0) / 1000).toFixed(2) + 's'; };
+  var t0 = performance.now(), seen = new WeakMap(), n = 0, PAGE = location.pathname.split('/').pop();
+  var lines = []; try { lines = JSON.parse(sessionStorage.getItem('labLog') || '[]'); } catch (e) {}
+  var save = function () { try { sessionStorage.setItem('labLog', JSON.stringify(lines.slice(-800))); } catch (e) {} };
+  var stamp = function () { return new Date().toISOString().slice(11, 23) + ' ' + PAGE; };
   function describe(el) {
     if (el.nodeType !== 1) return { kind: el.nodeType === 3 ? 'text' : 'node' + el.nodeType };
     var cs = null; try { cs = getComputedStyle(el); } catch (e) {}
@@ -59,8 +62,9 @@
     lines.push(line); render(cand);
   }
   var logEl = document.getElementById('log');
-  function render() { logEl.textContent = lines.join('\n'); }
+  function render() { save(); logEl.textContent = lines.join('\n'); }
   function snapshot(root, name) { for (var c = root.firstElementChild; c; c = c.nextElementSibling) if (c.tagName !== 'SCRIPT') log('start', name, c); }
+  lines.push('=== ' + PAGE + ' načtena ' + new Date().toISOString());
   lines.push('UA: ' + navigator.userAgent);
   lines.push('webdriver: ' + navigator.webdriver + ', jazyk: ' + navigator.language + ', čas: ' + new Date().toISOString());
   snapshot(document.documentElement, 'html'); snapshot(document.body, 'body');
@@ -90,6 +94,7 @@
   var moves = 0; document.addEventListener('mousemove', function () { moves++; }, true);
   setInterval(function () { if (keys || moves) { lines.push(stamp() + ' vstup: kláves=' + keys + ' pohybů myši=' + moves); keys = 0; moves = 0; render(); } }, 5000);
   document.addEventListener('visibilitychange', function () { lines.push(stamp() + ' viditelnost=' + document.visibilityState); render(); });
+  document.getElementById('clear').addEventListener('click', function () { lines = []; save(); render(); });
   document.getElementById('copy').addEventListener('click', function () {
     var txt = lines.join('\n');
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () { document.getElementById('copied').textContent = 'zkopírováno'; }, function () {

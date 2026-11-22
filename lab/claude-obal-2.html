@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Laboratoř: co vkládá agent do stránky</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+  h1 { font-size: 1.4rem; }
+  .box { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+  button { font: inherit; padding: .5rem 1rem; margin: .25rem .25rem .25rem 0; cursor: pointer; }
+  input { font: inherit; padding: .4rem; width: 14rem; }
+  #log { white-space: pre-wrap; font: 12px/1.4 ui-monospace, monospace; background: #f6f6f6; padding: .75rem; border-radius: 6px; max-height: 22rem; overflow: auto; }
+  .hit { background: #ffe08a; }
+  #status { font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>Laboratoř 2: delší úkol</h1>
+<p>Stránka jen zapisuje prvky, které se objeví nebo zmizí přímo v <code>&lt;body&gt;</code> a <code>&lt;html&gt;</code>. Nic neodesílá. Na konci klikni <b>Kopírovat log</b> a vlož ho Elishovi.</p>
+<div class="box">
+  <p><b>Formulář (testovací, nic se neodesílá):</b></p>
+  <p><label>Jméno <input id="f-name" type="text" autocomplete="off"></label></p>
+  <p><label>Oblíbené ovoce <select id="f-fruit"><option value="">vyber</option><option>jablko</option><option>hruška</option><option>švestka</option></select></label></p>
+  <p><label><input id="f-news" type="checkbox"> Chci novinky</label></p>
+  <p><label>Poznámka <textarea id="f-note" rows="3" cols="40"></textarea></label></p>
+  <button id="f-send" type="button">Odeslat (jen naoko)</button>
+  <p><a href="claude-obal.html">Zpět na první stránku</a></p>
+</div>
+<div class="box">
+  <button id="copy" type="button">Kopírovat log</button> <button id="clear" type="button">Vymazat log</button>
+  <span id="copied"></span>
+  <div id="log"></div>
+</div>
+<script>
+(function () {
+  var t0 = performance.now(), seen = new WeakMap(), n = 0, PAGE = location.pathname.split('/').pop();
+  var lines = []; try { lines = JSON.parse(sessionStorage.getItem('labLog') || '[]'); } catch (e) {}
+  var save = function () { try { sessionStorage.setItem('labLog', JSON.stringify(lines.slice(-800))); } catch (e) {} };
+  var stamp = function () { return new Date().toISOString().slice(11, 23) + ' ' + PAGE; };
+  function describe(el) {
+    if (el.nodeType !== 1) return { kind: el.nodeType === 3 ? 'text' : 'node' + el.nodeType };
+    var cs = null; try { cs = getComputedStyle(el); } catch (e) {}
+    var r = null; try { r = el.getBoundingClientRect(); } catch (e) {}
+    var attrs = []; for (var i = 0; i < el.attributes.length; i++) attrs.push(el.attributes[i].name + (el.attributes[i].name === 'id' || el.attributes[i].name === 'class' ? '=' + el.attributes[i].value.slice(0, 60) : ''));
+    return {
+      tag: el.tagName.toLowerCase(), attrs: attrs, attrCount: el.attributes.length,
+      lightChildren: el.childNodes.length, display: cs && cs.display, position: cs && cs.position,
+      zIndex: cs && cs.zIndex, openShadow: !!el.shadowRoot,
+      rect: r ? Math.round(r.width) + 'x' + Math.round(r.height) : null,
+      custom: el.tagName.indexOf('-') > 0
+    };
+  }
+  function isCandidate(d) { return d.tag === 'div' && d.attrCount === 0 && d.lightChildren === 0 && d.display === 'contents'; }
+  function log(kind, parent, el) {
+    var d = describe(el); if (!d.tag) return;
+    var id = seen.get(el); if (!id) { id = 'n' + (++n); seen.set(el, id); }
+    var cand = isCandidate(d);
+    var line = stamp() + ' ' + kind + ' ' + parent + '>' + d.tag + ' [' + id + '] attrs=' + d.attrCount + (d.attrs.length ? '(' + d.attrs.join(',') + ')' : '') +
+      ' children=' + d.lightChildren + ' display=' + d.display + ' pos=' + d.position + ' z=' + d.zIndex + ' rect=' + d.rect +
+      (d.openShadow ? ' openShadow' : '') + (d.custom ? ' customElement' : '') + (cand ? '  <<< VZOR CLAUDE' : '');
+    lines.push(line); render(cand);
+  }
+  var logEl = document.getElementById('log');
+  function render() { save(); logEl.textContent = lines.join('\n'); }
+  function snapshot(root, name) { for (var c = root.firstElementChild; c; c = c.nextElementSibling) if (c.tagName !== 'SCRIPT') log('start', name, c); }
+  lines.push('=== ' + PAGE + ' načtena ' + new Date().toISOString());
+  lines.push('UA: ' + navigator.userAgent);
+  lines.push('webdriver: ' + navigator.webdriver + ', jazyk: ' + navigator.language + ', čas: ' + new Date().toISOString());
+  snapshot(document.documentElement, 'html'); snapshot(document.body, 'body');
+  function onMut(recs) {
+    for (var i = 0; i < recs.length; i++) {
+      var r = recs[i], p = r.target === document.body ? 'body' : r.target === document.documentElement ? 'html' : null;
+      if (!p) continue;
+      for (var a = 0; a < r.addedNodes.length; a++) log('PŘIDÁN', p, r.addedNodes[a]);
+      for (var b = 0; b < r.removedNodes.length; b++) log('ODEBRÁN', p, r.removedNodes[b]);
+      if (r.type === 'attributes' && r.target !== document.body) log('ATRIBUT ' + r.attributeName, p, r.target);
+    }
+  }
+  var mo = new MutationObserver(onMut);
+  mo.observe(document.documentElement, { childList: true });
+  mo.observe(document.body, { childList: true });
+  // Periodicky přepočítat display u kandidátů (styl může přijít později).
+  setInterval(function () {
+    for (var c = document.body.firstElementChild; c; c = c.nextElementSibling) {
+      var d = describe(c); var key = 'v' + d.attrCount + d.display + d.lightChildren;
+      if (c.__lab !== key) { if (c.__lab) log('ZMĚNA', 'body', c); c.__lab = key; }
+    }
+  }, 1000);
+  var st = document.getElementById('status');
+  ['f-send'].forEach(function (id) { document.getElementById(id).addEventListener('click', function (e) { st.textContent = 'klik ' + id + ' (isTrusted=' + e.isTrusted + ')'; lines.push(stamp() + ' KLIK ' + id + ' isTrusted=' + e.isTrusted + ' detail=' + e.detail + ' pointerType=' + (e.pointerType || '-')); render(); }); });
+  ['f-name','f-note'].forEach(function (fid) { document.getElementById(fid).addEventListener('input', function (e) { lines.push(stamp() + ' PSANÍ isTrusted=' + e.isTrusted + ' inputType=' + e.inputType + ' pole=' + fid + ' délka=' + e.target.value.length); render(); }); });
+  ['f-fruit','f-news'].forEach(function (fid) { document.getElementById(fid).addEventListener('change', function (e) { lines.push(stamp() + ' ZMĚNA ' + fid + ' isTrusted=' + e.isTrusted); render(); }); });
+  var keys = 0; document.addEventListener('keydown', function () { keys++; }, true);
+  var moves = 0; document.addEventListener('mousemove', function () { moves++; }, true);
+  setInterval(function () { if (keys || moves) { lines.push(stamp() + ' vstup: kláves=' + keys + ' pohybů myši=' + moves); keys = 0; moves = 0; render(); } }, 5000);
+  document.addEventListener('visibilitychange', function () { lines.push(stamp() + ' viditelnost=' + document.visibilityState); render(); });
+  document.getElementById('clear').addEventListener('click', function () { lines = []; save(); render(); });
+  document.getElementById('copy').addEventListener('click', function () {
+    var txt = lines.join('\n');
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () { document.getElementById('copied').textContent = 'zkopírováno'; }, function () {
+      var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); document.getElementById('copied').textContent = 'zkopírováno';
+    });
+  });
+})();
+</script>
+</body>
+</html>
