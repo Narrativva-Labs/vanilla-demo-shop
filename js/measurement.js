@@ -27,6 +27,8 @@ window.gtag('consent', 'default', {
   if (VANILLA_SRC) {
     const script = document.createElement('script');
     script.defer = true;
+    // Wait up to 1 s for the Visitor Verdict initial class so the first page_view carries it.
+    script.dataset.vvWaitMs = '1000';
     script.src = VANILLA_SRC;
     document.head.append(script);
   }
