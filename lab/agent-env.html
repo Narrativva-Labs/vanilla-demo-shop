@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Laboratoř: prostředí prohlížeče</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.5 system-ui, -apple-system, sans-serif; margin: 0 auto; max-width: 760px; padding: 16px; }
+  h1 { font-size: 1.35rem; }
+  pre { background: rgba(127,127,127,.12); padding: .75rem; white-space: pre-wrap; word-break: break-all; font-size: .85rem; }
+  button { font-size: 1rem; padding: .6rem 1rem; }
+</style>
+</head>
+<body>
+<h1>Prostředí prohlížeče</h1>
+<p>Testovací stránka Visitor Verdict. Nic neměří ani neodesílá, jen zobrazí technické údaje o tomto prohlížeči. <b>Zkopíruj celý text z rámečku níže beze změny.</b> Počkej asi 10 sekund, než se doplní řádek <code>detector</code>.</p>
+<pre id="out">načítám…</pre>
+<button id="copy" type="button">Zkopírovat</button>
+<script>
+  window.visitorVerdictConfig = { debug: true, dataLayerName: 'vvLab', worker: true, webgl: true };
+  window.vvLab = [];
+  (function () {
+    var info = {};
+    function safe(fn) { try { return fn(); } catch (e) { return 'err'; } }
+    info.vvp = (location.search.match(/[?&]vvp=([^&]+)/) || [])[1] || '';
+    info.ua = navigator.userAgent;
+    info.platform = navigator.platform;
+    info.uaData = safe(function () { var d = navigator.userAgentData; return d ? { mobile: d.mobile, platform: d.platform, brands: d.brands.map(function (b) { return b.brand + ' ' + b.version; }) } : null; });
+    info.languages = navigator.languages;
+    info.tz = safe(function () { return Intl.DateTimeFormat().resolvedOptions().timeZone; });
+    info.tzOffset = new Date().getTimezoneOffset();
+    info.screen = [screen.width, screen.height, screen.availWidth, screen.availHeight, screen.colorDepth, devicePixelRatio];
+    info.window = [innerWidth, innerHeight, outerWidth, outerHeight];
+    info.cpu = navigator.hardwareConcurrency;
+    info.mem = navigator.deviceMemory;
+    info.touch = navigator.maxTouchPoints;
+    info.webdriver = navigator.webdriver;
+    info.plugins = safe(function () { return navigator.plugins.length; });
+    info.pdf = navigator.pdfViewerEnabled;
+    info.cookies = navigator.cookieEnabled;
+    info.dnt = navigator.doNotTrack;
+    info.gpc = navigator.globalPrivacyControl;
+    info.webgl = safe(function () {
+      var c = document.createElement('canvas'), g = c.getContext('webgl') || c.getContext('experimental-webgl');
+      if (!g) return null;
+      var e = g.getExtension('WEBGL_debug_renderer_info');
+      return { vendor: e ? g.getParameter(e.UNMASKED_VENDOR_WEBGL) : g.getParameter(g.VENDOR), renderer: e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER), maxTex: g.getParameter(g.MAX_TEXTURE_SIZE) };
+    });
+    info.media = safe(function () { return ['(prefers-color-scheme: dark)', '(pointer: fine)', '(hover: hover)', '(prefers-reduced-motion: reduce)'].map(function (q) { return matchMedia(q).matches ? 1 : 0; }).join(''); });
+    info.fonts = safe(function () {
+      var test = ['Arial', 'Helvetica', 'Times New Roman', 'Segoe UI', 'Roboto', 'Ubuntu', 'DejaVu Sans', 'Liberation Sans', 'Noto Sans', 'SF Pro Text', 'Menlo', 'Consolas'];
+      return test.filter(function (f) { return document.fonts && document.fonts.check('12px "' + f + '"'); });
+    });
+    info.connection = safe(function () { var c = navigator.connection; return c ? [c.effectiveType, c.rtt, c.downlink, c.saveData] : null; });
+    info.permissions = 'pending';
+    safe(function () { navigator.permissions.query({ name: 'notifications' }).then(function (p) { info.permissions = p.state + '/' + Notification.permission; render(); }); });
+    function render() {
+      var ev = window.vvLab.filter(function (x) { return x && x.event === 'traffic_class'; });
+      var last = ev[ev.length - 1];
+      info.detector = last ? [last.traffic_class, last.traffic_phase, last.traffic_agent || '', last.traffic_agent_claim || '', (last.traffic_signals || []).join(','), last.traffic_version] : 'pending';
+      info.bodyKids = [].slice.call(document.body.children).filter(function (el) { return ['SCRIPT', 'STYLE'].indexOf(el.tagName) < 0; }).map(function (el) { return el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.attributes.length ? '[' + el.attributes.length + ']' : '') + (el === document.getElementById('out') || el.id === 'copy' ? '' : ''); }).slice(-8);
+      document.getElementById('out').textContent = 'VVENV ' + JSON.stringify(info);
+    }
+    render(); setInterval(render, 1000);
+    // Final phase comes on the first hide or after ~8 s of visibility; scroll a little to look like reading.
+    document.getElementById('copy').onclick = function () { var t = document.getElementById('out').textContent; if (navigator.clipboard) navigator.clipboard.writeText(t); };
+  })();
+</script>
+<script src="https://cdn.jsdelivr.net/gh/Narrativva-Labs/visitor-verdict@v1.4.1/dist/visitor-verdict.min.js" integrity="sha384-5/YOpORmxAYL08/TpSplJERPTFCwjsAzJ/paS2vkm532IqL8ZpPgbl9jRkLTbhKs" crossorigin="anonymous"></script>
+</body>
+</html>
