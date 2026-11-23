@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Laboratoř: psaní do zamrzlé stránky</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.5 system-ui, -apple-system, sans-serif; margin: 0 auto; max-width: 760px; padding: 16px; }
+  h1 { font-size: 1.35rem; }
+  input { font-size: 1.2rem; padding: .5rem; width: 100%; box-sizing: border-box; }
+  button { font-size: 1rem; padding: .6rem 1rem; margin: .5rem .5rem .5rem 0; }
+  .ok { color: #1a7f37; } .bad { color: #cf222e; font-weight: 600; }
+  pre { background: rgba(127,127,127,.12); padding: .75rem; overflow-x: auto; font-size: .85rem; }
+  ol li { margin-bottom: .25rem; }
+</style>
+</head>
+<body>
+<h1>Psaní do zamrzlé stránky (signál BT)</h1>
+<p>Test pro Visitor Verdict 1.4.1. Tahle stránka nic neměří ani neodesílá, výsledek zůstává jen tady.</p>
+<ol>
+  <li>Klikni do pole.</li>
+  <li>Klikni na <b>Zamrazit na 2 s</b> a hned během zamrznutí rychle napiš „abcdef“.</li>
+  <li>Počkej, až se stránka rozmrzne, a podívej se na výsledek. Zopakuj 2–3×, klidně i s „Zamrazit na 4 s“.</li>
+</ol>
+<input id="f" autocomplete="off" placeholder="sem piš">
+<div>
+  <button id="b2" type="button">Zamrazit na 2 s</button>
+  <button id="b4" type="button">Zamrazit na 4 s</button>
+  <button id="clr" type="button">Vymazat</button>
+</div>
+<p id="res">Zatím nic.</p>
+<pre id="log"></pre>
+<p><small>Detektor: Visitor Verdict 1.4.1 z jsDelivr, vlastní vrstva <code>vvLab</code> (ne dataLayer GTM). <span id="det">načítám…</span></small></p>
+<script>
+  window.visitorVerdictConfig = { debug: true, dataLayerName: 'vvLab' };
+  window.vvLab = [];
+  (function () {
+    var f = document.getElementById('f'), log = document.getElementById('log'), res = document.getElementById('res');
+    var keys = [], inputs = [];
+    function freeze(ms) { f.focus(); setTimeout(function () { var t = performance.now(); while (performance.now() - t < ms) {} }, 50); }
+    document.getElementById('b2').onclick = function () { freeze(2000); };
+    document.getElementById('b4').onclick = function () { freeze(4000); };
+    document.getElementById('clr').onclick = function () { keys = []; inputs = []; f.value = ''; log.textContent = ''; res.textContent = 'Zatím nic.'; f.focus(); };
+    f.addEventListener('keydown', function (e) { if (!e.repeat && e.key.length === 1) keys.push(e.timeStamp); });
+    f.addEventListener('input', function (e) { if (e.inputType === 'insertText') { inputs.push(e.timeStamp); report(); } });
+    function burst(times) { // ≥3 events within ≤5 ms (detector rule)
+      for (var i = 2; i < times.length; i++) if (times[i] - times[i - 2] <= 5) return true;
+      return false;
+    }
+    function report() {
+      var gaps = function (a) { return a.slice(1).map(function (t, i) { return (t - a[i]).toFixed(1); }).join(', '); };
+      var byInput = burst(inputs), byKey = burst(keys);
+      log.textContent = 'mezery mezi stisky (keydown, ms): ' + gaps(keys) + '\nmezery mezi vloženími (input, ms): ' + gaps(inputs);
+      res.innerHTML = 'Podle času vložení (starý způsob): ' + (byInput ? '<span class="bad">vypadá jako rychlé psaní</span>' : '<span class="ok">v pořádku</span>') +
+        '<br>Podle času stisku (1.4.1): ' + (byKey ? '<span class="bad">BT by zabral (falešný poplach)</span>' : '<span class="ok">BT nezabere</span>');
+    }
+    setInterval(function () {
+      var ev = window.vvLab.filter(function (x) { return x && x.event === 'traffic_class'; });
+      var last = ev[ev.length - 1];
+      document.getElementById('det').textContent = last ? ('poslední třída: ' + last.traffic_class + ' / ' + last.traffic_phase + (last.traffic_signals ? ' · signály: ' + last.traffic_signals.join(',') : '')) : 'detektor zatím nic nepublikoval';
+    }, 1000);
+  })();
+</script>
+<script src="https://cdn.jsdelivr.net/gh/Narrativva-Labs/visitor-verdict@v1.4.1/dist/visitor-verdict.min.js" integrity="sha384-5/YOpORmxAYL08/TpSplJERPTFCwjsAzJ/paS2vkm532IqL8ZpPgbl9jRkLTbhKs" crossorigin="anonymous"></script>
+</body>
+</html>
