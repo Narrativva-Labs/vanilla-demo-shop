@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Laboratoř: agent a server-side GTM</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.5 system-ui, -apple-system, sans-serif; margin: 0 auto; max-width: 760px; padding: 16px; }
+  h1 { font-size: 1.35rem; }
+  pre { background: rgba(127,127,127,.12); padding: .75rem; white-space: pre-wrap; word-break: break-all; font-size: .85rem; }
+  button { font-size: 1rem; padding: .6rem 1rem; }
+</style>
+</head>
+<body>
+<h1>Agent a server-side GTM</h1>
+<p>Testovací stránka Visitor Verdict. Po načtení pošle dvě testovací události na testovací server-side GTM (nic osobního, jen adresu této stránky se značkou testu). <b>Počkej asi 10 sekund a zkopíruj celý text z rámečku beze změny.</b></p>
+<pre id="out">odesílám…</pre>
+<button id="copy" type="button">Zkopírovat</button>
+<!-- Hit bez JavaScriptu: dorazí jen tehdy, když návštěvník načítá obrázky a nespouští skripty (např. některé fetchery). -->
+<noscript><img alt="" width="1" height="1" src="https://vv-sgtm-khp26bbloq-ew.a.run.app/g/collect?v=2&amp;tid=G-123456&amp;cid=1.1&amp;en=page_view&amp;dt=sgtm-agent-nojs&amp;dl=https%3A%2F%2Fdemoshop.frantisekbujnovsky.com%2Flab%2Fsgtm-agent.html%3Fvvp%3Dsgtm-agent-nojs"></noscript>
+<script>
+  (function () {
+    var SGTM = 'https://vv-sgtm-khp26bbloq-ew.a.run.app/g/collect';
+    var vvp = (location.search.match(/[?&]vvp=([a-z0-9-]{1,60})/) || [])[1] || 'sgtm-agent';
+    var cid = Math.floor(Math.random() * 1e9) + '.' + Math.floor(Date.now() / 1000);
+    var sid = Math.floor(Date.now() / 1000);
+    var log = [];
+    function send(en, n) {
+      var dl = 'https://demoshop.frantisekbujnovsky.com/lab/sgtm-agent.html?vvp=' + vvp + '-' + n;
+      var q = 'v=2&tid=G-123456&cid=' + cid + '&sid=' + sid + '&_s=' + n + '&en=' + en + (n === 1 ? '&_ss=1&_fv=1' : '') +
+        '&seg=1&dt=sgtm-agent&dl=' + encodeURIComponent(dl);
+      var t0 = Date.now();
+      return fetch(SGTM + '?' + q, { method: 'POST', mode: 'no-cors', keepalive: true, credentials: 'omit' })
+        .then(function () { log.push(en + ' ' + n + ': odesláno (' + (Date.now() - t0) + ' ms)'); })
+        .catch(function (e) { log.push(en + ' ' + n + ': chyba ' + (e && e.name)); });
+    }
+    function show() {
+      document.getElementById('out').textContent = JSON.stringify({
+        vvp: vvp, ua: navigator.userAgent, webdriver: navigator.webdriver,
+        cas: new Date().toISOString(), vysledek: log
+      }, null, 1);
+    }
+    send('page_view', 1).then(function () { return new Promise(function (r) { setTimeout(r, 3000); }); })
+      .then(function () { return send('generate_lead', 2); }).then(show, show);
+    document.getElementById('copy').onclick = function () {
+      try { navigator.clipboard.writeText(document.getElementById('out').textContent); } catch (e) {}
+    };
+  })();
+</script>
+</body>
+</html>
