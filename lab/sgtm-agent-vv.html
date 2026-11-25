@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Laboratoř: agent, detektor a server-side GTM</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.5 system-ui, -apple-system, sans-serif; margin: 0 auto; max-width: 760px; padding: 16px; }
+  h1 { font-size: 1.35rem; }
+  pre { background: rgba(127,127,127,.12); padding: .75rem; white-space: pre-wrap; word-break: break-all; font-size: .85rem; }
+  button, input { font-size: 1rem; padding: .5rem .8rem; }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; margin: .75rem 0; }
+</style>
+</head>
+<body>
+<h1>Agent, detektor a server-side GTM</h1>
+<p>Testovací stránka Visitor Verdict. Načte detektor z prohlížeče a jeho výsledky pošle spolu s testovacími událostmi na testovací server-side GTM (nic osobního, jen adresu stránky se značkou testu a třídu provozu).</p>
+<p><b>Úkol pro agenta:</b> klikni na „Klikni sem“, do pole napiš slovo <code>test</code>, klikni „Hotovo“. Pak počkej asi 15 sekund, než se v rámečku objeví řádek „hotovo“, a zkopíruj celý text z rámečku beze změny.</p>
+<div class="row">
+  <button id="b1" type="button">Klikni sem</button>
+  <input id="f1" type="text" aria-label="Pole pro text" placeholder="sem napiš test">
+  <button id="b2" type="button">Hotovo</button>
+</div>
+<pre id="out">odesílám…</pre>
+<button id="copy" type="button">Zkopírovat</button>
+<script>
+  window.vvLab = window.vvLab || [];
+  window.visitorVerdictConfig = { dataLayerName: 'vvLab' };
+  (function () {
+    var SGTM = 'https://vv-sgtm-khp26bbloq-ew.a.run.app/g/collect';
+    var vvp = (location.search.match(/[?&]vvp=([a-z0-9-]{1,60})/) || [])[1] || 'sgtm-agent-vv';
+    var cid = Math.floor(Math.random() * 1e9) + '.' + Math.floor(Date.now() / 1000);
+    var sid = Math.floor(Date.now() / 1000);
+    var seq = 0, log = [], latest = {}, finalSeen = false, leadSent = false;
+    var KEYS = ['traffic_class', 'traffic_phase', 'traffic_score', 'traffic_version', 'traffic_agent', 'traffic_webmcp', 'traffic_agent_claim', 'traffic_replay'];
+    function show(extra) {
+      document.getElementById('out').textContent = JSON.stringify({
+        vvp: vvp, ua: navigator.userAgent, webdriver: navigator.webdriver,
+        cas: new Date().toISOString(), detektor: latest, vysledek: log.concat(extra ? [extra] : [])
+      }, null, 1);
+    }
+    function send(en, params) {
+      seq += 1;
+      var n = seq;
+      var dl = 'https://demoshop.frantisekbujnovsky.com/lab/sgtm-agent-vv.html?vvp=' + vvp + '-' + n;
+      var q = 'v=2&tid=G-123456&cid=' + cid + '&sid=' + sid + '&_s=' + n + '&en=' + encodeURIComponent(en) +
+        (n === 1 ? '&_ss=1&_fv=1' : '') + '&seg=1&dt=sgtm-agent-vv&dl=' + encodeURIComponent(dl);
+      var desc = [];
+      for (var k in params) {
+        if (params[k] !== undefined && params[k] !== null && params[k] !== '') {
+          var isNum = typeof params[k] === 'number';
+          q += '&' + (isNum ? 'epn.' : 'ep.') + k + '=' + encodeURIComponent(String(params[k]));
+          desc.push(k.replace('traffic_', '') + '=' + params[k]);
+        }
+      }
+      var t0 = Date.now();
+      return fetch(SGTM + '?' + q, { method: 'POST', mode: 'no-cors', keepalive: true, credentials: 'omit' })
+        .then(function () { log.push(n + ' ' + en + (desc.length ? ' [' + desc.join(', ') + ']' : '') + ': odesláno (' + (Date.now() - t0) + ' ms)'); show(); })
+        .catch(function (e) { log.push(n + ' ' + en + ': chyba ' + (e && e.name)); show(); });
+    }
+    function pick(obj) { var p = {}; for (var i = 0; i < KEYS.length; i++) if (obj[KEYS[i]] !== undefined) p[KEYS[i]] = obj[KEYS[i]]; return p; }
+    function onPush(obj) {
+      if (!obj || obj.event !== 'traffic_class') return;
+      latest = pick(obj);
+      send('traffic_class', latest);
+      if (obj.traffic_phase === 'final') finalSeen = true;
+    }
+    var original = window.vvLab.push;
+    window.vvLab.push = function () {
+      for (var i = 0; i < arguments.length; i++) { try { onPush(arguments[i]); } catch (e) {} }
+      return original.apply(window.vvLab, arguments);
+    };
+    for (var j = 0; j < window.vvLab.length; j++) onPush(window.vvLab[j]);
+    send('page_view', {});
+    document.getElementById('b1').onclick = function () { log.push('klik Klikni sem'); show(); };
+    document.getElementById('b2').onclick = function () { log.push('klik Hotovo'); show(); };
+    var started = Date.now();
+    var timer = setInterval(function () {
+      if (leadSent) return;
+      if (finalSeen || Date.now() - started > 20000) {
+        leadSent = true;
+        clearInterval(timer);
+        send('generate_lead', latest).then(function () { show('hotovo'); });
+      }
+    }, 500);
+    document.getElementById('copy').onclick = function () {
+      try { navigator.clipboard.writeText(document.getElementById('out').textContent); } catch (e) {}
+    };
+  })();
+</script>
+<script src="https://cdn.jsdelivr.net/gh/Narrativva-Labs/visitor-verdict@v1.5.0/dist/visitor-verdict.min.js" integrity="sha384-gfZLJe0P7pserHsaVc2Wx0xanIuoAm8WJdRVBkBIMkbprijrL4vVns8VBofbDJew" crossorigin="anonymous"></script>
+</body>
+</html>
