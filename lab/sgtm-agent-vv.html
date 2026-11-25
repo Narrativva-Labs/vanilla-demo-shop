@@ -82,7 +82,7 @@
       if (finalSeen || Date.now() - started > 20000) {
         leadSent = true;
         clearInterval(timer);
-        send('generate_lead', latest).then(function () { show('hotovo'); });
+        send('generate_lead', latest).then(function () { log.push('hotovo'); show(); });
       }
     }, 500);
     document.getElementById('copy').onclick = function () {
