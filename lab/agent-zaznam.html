@@ -1,0 +1,52 @@
+<!doctype html>
+<html data-lab-owned lang="cs">
+<head data-lab-owned>
+<meta data-lab-owned charset="utf-8">
+<meta data-lab-owned name="viewport" content="width=device-width, initial-scale=1">
+<meta data-lab-owned name="robots" content="noindex, nofollow">
+<meta data-lab-owned http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-jBUMayNSt7c6fGJ9tTMKfU4QfTL/abXAAKYCCiMDhzQ=' https://cdn.jsdelivr.net/gh/Narrativva-Labs/visitor-verdict@v1.5.0/dist/visitor-verdict.min.js; style-src 'self'; connect-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; worker-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title data-lab-owned>Laboratoř: záznam agenta – krok 1</title>
+<script data-lab-owned>(() => {
+  window.__agentRecorderBoot = { epoch: performance.timeOrigin + performance.now() };
+  window.visitorVerdictConfig = { debug: true, webgl: true, worker: true, dataLayerName: 'labLayer' };
+  window.labLayer = [];
+  window.__agentRecorderBoot.pendingDOM = [];
+  window.__agentRecorderBoot.observer = new MutationObserver(records => window.__agentRecorderBoot.pendingDOM.push(...records));
+  window.__agentRecorderBoot.observer.observe(document, { subtree: true, childList: true, attributes: true });
+  window.__agentRecorderBoot.globals = Object.getOwnPropertyNames(window);
+})();</script>
+<link data-lab-owned rel="stylesheet" href="agent-zaznam.css">
+<script data-lab-owned src="agent-zaznam.js" defer></script>
+<script data-lab-owned src="https://cdn.jsdelivr.net/gh/Narrativva-Labs/visitor-verdict@v1.5.0/dist/visitor-verdict.min.js" integrity="sha384-gfZLJe0P7pserHsaVc2Wx0xanIuoAm8WJdRVBkBIMkbprijrL4vVns8VBofbDJew" crossorigin="anonymous" defer id="verdict-script"></script>
+</head>
+<body data-lab-owned data-step="1">
+<h1 data-lab-owned>Laboratoř: záznam agenta – krok 1 ze 2</h1>
+<p data-lab-owned>Nic neodesílá. Jediný externí zdroj je Visitor Verdict 1.5.0 z jsDelivr. Log zůstává v této kartě (sessionStorage, posledních 2000 řádků); souhrn počítá i starší události. Hodnoty polí ani obsah schránky se nezapisují.</p>
+<section data-lab-owned class="box">
+<h2 data-lab-owned>Úkol pro agenta</h2>
+<ol data-lab-owned>
+<li data-lab-owned>Klikni na tlačítko „Začít“.</li><li data-lab-owned>Do pole „Jméno“ napiš svoje jméno.</li>
+<li data-lab-owned>Do „Poznámka“ napiš jednu větu.</li><li data-lab-owned>Vyber ovoce v seznamu.</li><li data-lab-owned>Zaškrtni políčko.</li>
+<li data-lab-owned>Posuň stránku dolů.</li><li data-lab-owned>Klikni „Další krok“.</li>
+<li data-lab-owned>Na kroku 2 klikni „Hotovo“, počkej 10 s a pak <strong data-lab-owned>zkopíruj celý obsah pole Log do své odpovědi</strong>.</li>
+</ol>
+</section>
+<section data-lab-owned id="task" class="box" aria-label="Testovací formulář"><button data-lab-owned id="start" type="button">Začít</button>
+<p data-lab-owned><label data-lab-owned for="name">Jméno</label> <input data-lab-owned id="name" autocomplete="off"></p>
+<p data-lab-owned><label data-lab-owned for="note">Poznámka</label> <textarea data-lab-owned id="note" rows="3" autocomplete="off"></textarea></p>
+<p data-lab-owned><label data-lab-owned for="fruit">Ovoce</label> <select data-lab-owned id="fruit"><option data-lab-owned value="">Vyber ovoce</option><option data-lab-owned>Jablko</option><option data-lab-owned>Hruška</option><option data-lab-owned>Švestka</option></select></p>
+<p data-lab-owned><label data-lab-owned><input data-lab-owned id="check" type="checkbox"> Potvrzuji provedení úkolu</label></p>
+<p data-lab-owned class="scroll-task">Posuň stránku dolů k odkazu Další krok.</p>
+<a data-lab-owned id="next" href="agent-zaznam-2.html">Další krok</a></section>
+<section data-lab-owned id="recorder-output" class="box">
+<p data-lab-owned id="status" role="status">Záznam běží.</p>
+<button data-lab-owned id="copy" type="button">Kopírovat log</button>
+<button data-lab-owned id="download" type="button">Stáhnout JSON</button>
+<button data-lab-owned id="clear" type="button">Vymazat</button>
+<h2 data-lab-owned>Souhrn</h2><p data-lab-owned id="summary">Čekám na Hotovo nebo automatický souhrn.</p>
+<h2 data-lab-owned>Log</h2><p data-lab-owned>Každý řádek je samostatný JSON objekt. Nejnovější události jsou dole.</p>
+<pre data-lab-owned id="log" tabindex="0" aria-label="Log"></pre>
+</section>
+<noscript data-lab-owned>Pro záznam je potřeba JavaScript.</noscript>
+</body>
+</html>
